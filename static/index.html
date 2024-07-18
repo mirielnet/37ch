@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>37ch</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+    
+        .container {
+            width: 80%;
+            margin: auto;
+            overflow: hidden;
+        }
+    
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+    
+        #threadForm, #postForm {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+    
+        #threadForm input, #postForm input, #threadForm button, #postForm button, #postContent {
+            width: 100%; /* 入力エリアを横一杯に */
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+    
+        #postContent {
+            height: 100px; /* テキストエリアの高さ調整 */
+            resize: vertical; /* 垂直方向のリサイズを有効に */
+        }
+    
+        #threads {
+            margin-top: 20px;
+        }
+    
+        .thread-card {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+    
+        .thread-card h3 {
+            margin: 0;
+            color: #333;
+        }
+    
+        .post {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+    
+        .post:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>37ch</h1>
+        <div id="create-thread">
+            <h2>Create New Thread</h2>
+            <form id="threadForm">
+                <input type="text" id="threadTitle" placeholder="Thread Title" required>
+                <button type="submit">Create Thread</button>
+            </form>
+        </div>
+        <div id="threads"></div>
+    </div>
+
+    <script>
+        async function loadThreads() {
+            const response = await fetch('/threads');
+            const threads = await response.json();
+            const threadsContainer = document.getElementById('threads');
+            threadsContainer.innerHTML = '';
+            threads.forEach(thread => {
+                const threadCard = document.createElement('div');
+                threadCard.classList.add('thread-card');
+                threadCard.innerHTML = `<h3>${thread.id}: ${thread.title}</h3>`;
+                threadCard.addEventListener('click', () => openThread(thread));
+                threadsContainer.appendChild(threadCard);
+            });
+        }
+    
+        function openThread(thread) {
+            const container = document.createElement('div');
+            container.classList.add('container');
+    
+            const threadHeader = document.createElement('h2');
+            threadHeader.textContent = `${thread.id}: ${thread.title}`;
+            container.appendChild(threadHeader);
+    
+            thread.posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.classList.add('post');
+                postElement.innerHTML = `<strong>匿名:</strong> ${post.content}`;
+                container.appendChild(postElement);
+            });
+    
+            const postForm = document.createElement('form');
+            postForm.id = 'postForm';
+            postForm.innerHTML = `
+                <input type="hidden" id="threadId" value="${thread.id}">
+                <textarea id="postContent" placeholder="Content" required></textarea>
+                <button type="submit">Post</button>
+            `;
+            container.appendChild(postForm);
+    
+            document.body.innerHTML = '';
+            document.body.appendChild(container);
+    
+            document.getElementById('postForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const postContent = document.getElementById('postContent').value;
+                const response = await fetch(`/threads/${thread.id}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ thread_id: thread.id, content: postContent })
+                });
+                if (response.ok) {
+                    document.getElementById('postContent').value = '';
+                    openThread(thread);
+                    setInterval(() => openThread(thread), 5000); // 5秒ごとに更新
+                } else {
+                    alert('Failed to post');
+                }
+            });
+        }
+    
+        document.getElementById('threadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const threadTitle = document.getElementById('threadTitle').value;
+            const response = await fetch('/threads', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title: threadTitle })
+            });
+            if (response.ok) {
+                document.getElementById('threadTitle').value = '';
+                loadThreads();
+            } else {
+                alert('Failed to create thread');
+            }
+        });
+    
+        loadThreads();
+    </script>    
+</body>
+</html>
