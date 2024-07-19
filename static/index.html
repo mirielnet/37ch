@@ -84,6 +84,8 @@
     </div>
 
     <script>
+        let currentThreadId = null;
+    
         async function loadThreads() {
             const response = await fetch('/threads');
             const threads = await response.json();
@@ -98,7 +100,30 @@
             });
         }
     
+        async function loadThreadPosts(threadId) {
+            const response = await fetch(`/threads/${threadId}`);
+            const thread = await response.json();
+    
+            const postsContainer = document.getElementById('posts');
+            if (postsContainer) {
+                postsContainer.innerHTML = '';
+            } else {
+                const newPostsContainer = document.createElement('div');
+                newPostsContainer.id = 'posts';
+                document.body.appendChild(newPostsContainer);
+            }
+    
+            thread.posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.classList.add('post');
+                postElement.innerHTML = `<strong>匿名:</strong> ${post.content}`;
+                postsContainer.appendChild(postElement);
+            });
+        }
+    
         function openThread(thread) {
+            currentThreadId = thread.id;
+    
             const container = document.createElement('div');
             container.classList.add('container');
     
@@ -106,11 +131,15 @@
             threadHeader.textContent = `${thread.id}: ${thread.title}`;
             container.appendChild(threadHeader);
     
+            const postsContainer = document.createElement('div');
+            postsContainer.id = 'posts';
+            container.appendChild(postsContainer);
+    
             thread.posts.forEach(post => {
                 const postElement = document.createElement('div');
                 postElement.classList.add('post');
                 postElement.innerHTML = `<strong>匿名:</strong> ${post.content}`;
-                container.appendChild(postElement);
+                postsContainer.appendChild(postElement);
             });
     
             const postForm = document.createElement('form');
@@ -137,8 +166,7 @@
                 });
                 if (response.ok) {
                     document.getElementById('postContent').value = '';
-                    openThread(thread);
-                    setInterval(() => openThread(thread), 5000); // 5秒ごとに更新
+                    loadThreadPosts(thread.id);
                 } else {
                     alert('Failed to post');
                 }
@@ -164,6 +192,11 @@
         });
     
         loadThreads();
+        setInterval(() => {
+            if (currentThreadId !== null) {
+                loadThreadPosts(currentThreadId);
+            }
+        }, 5000); // 5秒ごとに更新
     </script>    
 </body>
 </html>
