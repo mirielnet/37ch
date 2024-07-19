@@ -101,7 +101,7 @@
             });
         }
 
-        async function loadThreadPosts(threadId) {
+        async function loadThreadPosts(threadId, keepForm = false) {
             const response = await fetch(`/threads/${threadId}`);
             const thread = await response.json();
 
@@ -119,36 +119,43 @@
                 container.appendChild(postElement);
             });
 
-            const postForm = document.createElement('form');
-            postForm.id = 'postForm';
-            postForm.innerHTML = `
-                <input type="hidden" id="threadId" value="${DOMPurify.sanitize(thread.id)}">
-                <textarea id="postContent" placeholder="Content" required></textarea>
-                <button type="submit">Post</button>
-            `;
-            container.appendChild(postForm);
+            if (!keepForm) {
+                const postForm = document.createElement('form');
+                postForm.id = 'postForm';
+                postForm.innerHTML = `
+                    <input type="hidden" id="threadId" value="${DOMPurify.sanitize(thread.id)}">
+                    <textarea id="postContent" placeholder="Content" required></textarea>
+                    <button type="submit">Post</button>
+                `;
+                container.appendChild(postForm);
+                document.body.innerHTML = '';
+                document.body.appendChild(container);
 
-            document.body.innerHTML = '';
-            document.body.appendChild(container);
-
-            document.getElementById('postForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const postContent = DOMPurify.sanitize(document.getElementById('postContent').value);
-                const response = await fetch(`/threads/${thread.id}/posts`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ thread_id: thread.id, content: postContent })
+                document.getElementById('postForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const postContent = DOMPurify.sanitize(document.getElementById('postContent').value);
+                    const response = await fetch(`/threads/${thread.id}/posts`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ thread_id: thread.id, content: postContent })
+                    });
+                    if (response.ok) {
+                        document.getElementById('postContent').value = '';
+                        loadThreadPosts(thread.id, true); // 保持するフォームを維持しながら更新
+                    } else {
+                        alert('Failed to post');
+                    }
                 });
-                if (response.ok) {
-                    document.getElementById('postContent').value = '';
-                    // 即時に更新
-                    loadThreadPosts(thread.id);
-                } else {
-                    alert('Failed to post');
+            } else {
+                const existingPostForm = document.getElementById('postForm');
+                if (existingPostForm) {
+                    container.appendChild(existingPostForm);
+                    document.body.innerHTML = '';
+                    document.body.appendChild(container);
                 }
-            });
+            }
         }
 
         function openThread(thread) {
@@ -177,7 +184,7 @@
         loadThreads();
         setInterval(() => {
             if (currentThreadId !== null) {
-                loadThreadPosts(currentThreadId);
+                loadThreadPosts(currentThreadId, true); // フォームを維持しながら更新
             }
         }, 5000); // 5秒ごとに更新
     </script>
